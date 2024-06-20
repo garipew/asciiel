@@ -1,9 +1,9 @@
 function readArgs()
 	
-	local w = false
-	local h = false
 	local invert = false
 	local complete = false
+	local color = false
+	local ascii = false
 
 	local width = 0
 	local height = 0
@@ -11,28 +11,28 @@ function readArgs()
 	for i=1,#arg do
 		local num = tonumber(arg[i])
 		if num ~= nil then
-			if not w then
+			if width == 0 then
 				width = num
-				w = true
-			elseif not h then
+			elseif height == 0 then
 				height = num
-				h = true
 			end
 			goto continue
 		end
 
-		if arg[i] == "true" then
+		if arg[i] == "invert" then
 			invert = true
-		elseif arg[i] == "false" then
-			invert = false
 		elseif arg[i] == "complete" then
 			complete = true
+		elseif arg[i] == "color" then
+			color = true
+		elseif arg[i] == "ascii" then
+			ascii = true
 		end	
 				
 		::continue::
 	end
 	
-	return width,height,invert,complete	
+	return width,height,invert,complete,color,ascii
 
 end
 
@@ -46,11 +46,12 @@ local ratio = width/height
 local width_scale = 200/width
 local height_scale = width_scale / ratio
 
-local w,h,invert,complete = readArgs()
+local w,h,invert,complete,color,asc = readArgs()
 if w ~= 0 then
 	width_scale = w/width
 	height_scale = width_scale / ratio
 end
+if ratio <= 1 then height_scale = height_scale / 2 end
 if h ~= 0 then
 	height_scale = h/height
 end
@@ -71,10 +72,24 @@ for j=0,height-1 do
 	for k=0,width-1 do
 		if new_px >= 1 then
 			r,g,b,a = imagem:getPixel(k,j)
-			new_char = (0.2126*r*255 + 0.7152*g*255 + 0.0722*b*255) / range
-			if invert then new_char = #ascii + 1 - new_char end
-			if new_char < 1 then new_char = 1 end
-			str = str .. string.sub(ascii, new_char, new_char)
+			r = r * 255
+			g = g * 255
+			b = b * 255
+			new_char_pos = (0.2126*r + 0.7152*g + 0.0722*b) / range
+			if invert then new_char_pos = #ascii + 1 - new_char_pos end
+			if new_char_pos < 1 then new_char_pos = 1 end
+			local new_char = string.sub(ascii, new_char_pos, new_char_pos)
+			if not color then
+				str = str .. new_char
+			else
+				local cor = "\x1b[38;2;" .. r .. ";" .. g .. ";" .. b .. "m"
+				local fim = "\x1b[0m"
+				if asc then
+					str = str .. cor .. new_char .. fim
+				else
+					str = str .. cor .. "@" .. fim
+				end
+			end
 			new_px = new_px - 1
 		end
 		new_px = new_px + width_scale 
